@@ -33,6 +33,12 @@ pnpm-debug.log*
 .agents/
 _references/
 
+# Local planning and design documents
+/AGENTS.md
+/项目改进方案.md
+/游戏蓝图_设计框架.md
+/游戏设计框架.docx
+
 # OS files
 .DS_Store
 Thumbs.db
