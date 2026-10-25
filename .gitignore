@@ -1,0 +1,38 @@
+# Local credentials and environment files
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# Python virtual environments, caches, and test output
+.venv/
+venv/
+backend/venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Node dependencies and generated output
+node_modules/
+frontend/.next/
+frontend/out/
+frontend/dist/
+frontend/coverage/
+*.tsbuildinfo
+npm-debug.log*
+pnpm-debug.log*
+
+# Local IDE and copied reference repositories
+.idea/
+.agents/
+_references/
+
+# OS files
+.DS_Store
+Thumbs.db

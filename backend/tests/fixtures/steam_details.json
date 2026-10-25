@@ -1,0 +1,12 @@
+{
+  "name": "Elden Ring",
+  "short_description": "An action RPG set in a vast world.",
+  "header_image": "https://cdn.example/elden-ring.jpg",
+  "developers": ["FromSoftware Inc."],
+  "publishers": ["Bandai Namco Entertainment"],
+  "platforms": {"windows": true, "mac": false, "linux": false},
+  "genres": [{"id": "3", "description": "RPG"}, {"id": "1", "description": "Action"}],
+  "release_date": {"coming_soon": false, "date": "25 Feb, 2022"},
+  "recommendations": {"total": 700000},
+  "screenshots": [{"id": 0, "path_full": "https://cdn.example/screenshot.jpg"}]
+}

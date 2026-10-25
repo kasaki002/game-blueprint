@@ -1,0 +1,131 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_DB: game_blueprint
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "15432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d game_blueprint"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  mongodb:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodata:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    build:
+      context: ./backend
+    environment:
+      DEBUG: "false"
+      CORS_ORIGINS: '["http://localhost:3000"]'
+      POSTGRES_DSN: postgresql+asyncpg://postgres:postgres@postgres:5432/game_blueprint
+      MONGO_DSN: mongodb://mongodb:27017
+      MONGO_DB: game_blueprint
+      REDIS_DSN: redis://redis:6379/0
+      LLM_PROVIDER: ${LLM_PROVIDER:-openai}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
+      CHUNK_SIZE: ${CHUNK_SIZE:-512}
+      CHUNK_OVERLAP: ${CHUNK_OVERLAP:-64}
+      TOP_K: ${TOP_K:-5}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      TRUSTED_ORIGINS: '["http://localhost:3000"]'
+      SECURE_COOKIES: "false"
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  crawler-worker:
+    build:
+      context: ./backend
+    command: ["arq", "app.workers.tasks.WorkerSettings"]
+    environment:
+      POSTGRES_DSN: postgresql+asyncpg://postgres:postgres@postgres:5432/game_blueprint
+      MONGO_DSN: mongodb://mongodb:27017
+      MONGO_DB: game_blueprint
+      REDIS_DSN: redis://redis:6379/0
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
+      CHUNK_SIZE: ${CHUNK_SIZE:-512}
+      CHUNK_OVERLAP: ${CHUNK_OVERLAP:-64}
+      TOP_K: ${TOP_K:-5}
+      CRAWL_TIMEOUT: "30"
+      CRAWL_DELAY: "1.0"
+      CRAWL_MAX_RETRIES: "3"
+      CRAWLER_USER_AGENT: ${CRAWLER_USER_AGENT:-GameBlueprint/0.1 (+https://localhost)}
+      BROWSER_CRAWL_ENABLED: "true"
+      BROWSER_CRAWL_CONCURRENCY: "2"
+      BROWSER_CRAWL_TIMEOUT: "30"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import redis,sys; r=redis.Redis(host='redis',port=6379,db=0); keys=r.keys('arq:*health-check*'); sys.exit(0 if keys else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  frontend:
+    image: gameblueprint-frontend:production
+    build:
+      context: ./frontend
+    environment:
+      BACKEND_API_URL: http://backend:8000/api
+      NEXT_PUBLIC_BACKEND_URL: http://localhost:8000/api
+      HOSTNAME: 0.0.0.0
+      PORT: "3000"
+    ports:
+      - "3000:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+      crawler-worker:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  mongodata:
